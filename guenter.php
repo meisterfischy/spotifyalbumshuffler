@@ -2,53 +2,47 @@
 
 session_start();
 
-if (!isset($_SESSION)) {
+if (!isset($_SESSION['access_token']) && !isset($_SESSION['refresh_token']) && !isset($_SESSION['exp_date'])) {
     $_SESSION['access_token'] = '';
     $_SESSION['refresh_token'] = '';
     $_SESSION['exp_date'] = 0;
 }
 
-print_r(getTotalSongs('2JN9ZjnLh182Dak5rIazyP'));
+print_r(getAlbums('2JN9ZjnLh182Dak5rIazyP'));
 
-# decides whether the token is still valid or has to be renewed, returns the access token
 function token() {
-       
-    if ((time() - 300) > $_SESSION['exp_date'])
-        getToken($_SESSION['access_token'], $_SESSION['refresh_token'], $_SESSION['exp_date']);    
-    return $_SESSION['access_token'];
 
-}
+    if((time() - 300) > $_SESSION['exp_date']) { 
+    
+        $url = 'https://accounts.spotify.com/api/token';
+        $credentials = '';
+        $spot_api_redirect = 'https://music.xn--langerlmmel-zhb.de/guenter.php/';
+        $headers = array(
+            'Authorization: Basic '.base64_encode($credentials)
+         );
+    
+        if ($_SESSION['access_token'] == '')
+            $data = 'grant_type=authorization_code&code='.$_GET['code'].'&redirect_uri='.urlencode($spot_api_redirect);
+        else 
+            $data = 'grant_type=refresh_token&refresh_token='.$_SESSION['refresh_token'];
 
-# gets first token or renews it 
-function getToken(&$acs_tok, &$ref_tok, &$date) {
+        $ch = curl_init();
+            curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => 1,
+            CURLOPT_URL => $url,
+            CURLOPT_HTTPHEADER => $headers,
+            CURLOPT_POST => 1,
+            CURLOPT_POSTFIELDS => $data
+        ]);
 
-    $url = 'https://accounts.spotify.com/api/token';
-    $credentials = '';
-    $spot_api_redirect = 'https://music.xn--langerlmmel-zhb.de/';
-    $headers = array(
-        'Authorization: Basic '.base64_encode($credentials)
-    );
+        $response = json_decode(curl_exec($ch), true);
+        curl_close($ch);
 
-    if ($_SESSION['access_token'] == '')
-        $data = 'grant_type=authorization_code&code='.$_GET['code'].'&redirect_uri='.urlencode($spot_api_redirect);
-    else 
-        $data = 'grant_type=refresh_token&refresh_token='.$ref_tok;
-
-    $ch = curl_init();
-    curl_setopt_array($ch, [
-        CURLOPT_RETURNTRANSFER => 1,
-        CURLOPT_URL => $url,
-        CURLOPT_HTTPHEADER => $headers,
-        CURLOPT_POST => 1,
-        CURLOPT_POSTFIELDS => $data
-    ]);
-
-    $response = json_decode(curl_exec($ch), true);
-    curl_close($ch);
-
-    $acs_tok = $response['access_token'];
-    $ref_tok = $response['refresh_token'];
-    $date = time() + $response['expires_in'];
+        $_SESSION['access_token'] = $response['access_token'];
+        $_SESSION['refresh_token'] = $response['refresh_token'];
+        $_SESSION['exp_date'] = time() + $response['expires_in'];
+    
+    } return $_SESSION['access_token'];
 
 }
 
@@ -79,6 +73,8 @@ function getAlbums($play_id) {
             $ids -> add($id['track']['album']['id']);
 
     }
+
+    return $ids;
 
 }
 
