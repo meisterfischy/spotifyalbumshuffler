@@ -12,7 +12,7 @@ print_r(getAlbums('2JN9ZjnLh182Dak5rIazyP'));
 
 function token() {
 
-    if((time() - 300) > $_SESSION['exp_date']) { 
+    if((time() + 300) > $_SESSION['exp_date']) { 
     
         $url = 'https://accounts.spotify.com/api/token';
         $credentials = '';
